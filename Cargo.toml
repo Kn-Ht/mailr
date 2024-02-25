@@ -12,5 +12,6 @@ codegen-units = 1
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = "4.5.1"
+anyhow = "1.0.80"
+clap = {version = "4.5.1", features = ["derive"]}
 lettre = "0.11.4"
