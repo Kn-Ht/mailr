@@ -4,6 +4,10 @@ pub enum Relay {
     GMail
 }
 
+impl Relay {
+    // TODO: tls(), etc.
+}
+
 pub struct Config {
     username: String,
     password: String, 
@@ -11,8 +15,15 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn read() -> Result<Self> {
-
+    /// Try to find config file
+    pub fn read() -> anyhow::Result<Self> {
+        Ok(
+            Self {
+                username: "".to_string(),
+                password: "".to_string(),
+                relay: Relay::Outlook
+            }
+        )
     }
 }
 

@@ -14,4 +14,5 @@ codegen-units = 1
 [dependencies]
 anyhow = "1.0.80"
 clap = {version = "4.5.1", features = ["derive"]}
+inquire = "0.7.0"
 lettre = "0.11.4"
