@@ -5,7 +5,10 @@ use lettre::transport::smtp::client::TlsParameters;
 use lettre::SmtpTransport;
 use lettre::Transport;
 
+use colored::Colorize;
+
 use crate::config;
+use crate::info;
 use crate::Args;
 
 pub trait SendMail {
@@ -17,7 +20,7 @@ impl SendMail for config::Config {
         // Username & Decrypted Password
         let credentials = self.credentials();
 
-        println!("creating transport...");
+        info!("creating transport...");
         let mailer = SmtpTransport::relay(&self.relay_settings.addr)?
             .authentication(self.relay_settings.authentication.clone())
             .port(self.relay_settings.port)
@@ -31,14 +34,14 @@ impl SendMail for config::Config {
             .credentials(credentials)
             .build();
 
-        println!("building message...");
+        info!("building message...");
         let message = MessageBuilder::new()
             .from(Mailbox::new(None, self.username().parse().unwrap()))
-            .to(args.to.parse().unwrap())
+            .to(args.to.parse().map_err(|err| anyhow::anyhow!("failed to parse --to '{}': {err}", args.to))?)
             .subject(args.subject.clone())
             .body(args.msg.clone())?;
 
-        println!("sending message...");
+        info!("sending message...");
         Ok(mailer.send(&message).map(|_| ())?)
     }
 }

@@ -1,4 +1,4 @@
-use crate::crypto;
+use crate::{crypto, info, warning};
 use inquire::validator::Validation;
 use lettre::{
     message::Mailbox,
@@ -170,14 +170,14 @@ impl Config {
 
             fs::write(&path_local, toml::to_string_pretty(self)?)?;
 
-            println!("[INFO] saved file (local) to '{}'", path_local.display());
+            info!("saved file (local) to '{}'", path_local.display());
         }
         if store_global {
             let path_global = Self::global_file_loc()?;
 
             if path_global.is_file() {
-                eprintln!(
-                    "[WARNING] overwriting existing file '{}'",
+                warning!(
+                    "overwriting existing file '{}'",
                     path_global.display()
                 );
             }

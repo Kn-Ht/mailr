@@ -3,10 +3,14 @@
 use std::process;
 use clap::{CommandFactory, Parser};
 
+use colored::Colorize;
+
 use crate::config::Config;
 mod config;
 mod crypto;
 mod mail;
+mod log;
+
 
 // SendEmail trait
 use mail::SendMail;
@@ -32,34 +36,27 @@ fn main() {
         let config = match Config::ask() {
             Ok(c) => c,
             Err(e) => {
-                eprintln!("[ERROR :: failed to read user input]: {e}");
-                process::exit(1);
+                error!("failed to create config": e);
             }
         };
 
         if let Err(err) = config.save() {
-            eprintln!("[ERROR :: failed to save the config]: {err}");
-            process::exit(1);
+            error!("failed to save the config": err);
         }
         return;
     }
 
     // Is the user login saved?
-    let config = match Config::from_file() {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("[ERROR :: can't read config]: {e}");
-            process::exit(1);
-        }
-    };
+    let config = Config::from_file().unwrap_or_else(|err| {
+        error!("can't read config": err);
+    });
 
     match config.send(&args) {
         Ok(_) => {
-            println!("Successfully sent Mail!");
+            info!("Successfully sent Mail!");
         }
         Err(e) => {
-            eprintln!("[ERROR :: failed to send mail]: {e}");
-            process::exit(1);
+            error!("failed to send mail": e);
         }
     }
 }
