@@ -6,14 +6,18 @@ edition = "2021"
 [profile.release]
 strip = true
 lto = true
-opt-level = "s"
+opt-level = "z"
 codegen-units = 1
+panic = "abort"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+aes-gcm = "0.10.3"
 anyhow = "1.0.80"
 clap = {version = "4.5.1", features = ["derive"]}
 inquire = "0.7.0"
-lettre = "0.11.4"
-libpasta = "0.1.2"
+lazy_static = "1.4.0"
+lettre = {version = "0.11.4", features = ["serde"]}
+serde = { version = "1.0.197", features = ["derive"] }
+toml = "0.8.10"
