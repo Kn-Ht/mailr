@@ -16,9 +16,7 @@ type NonceArray = Nonce<UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>;
 /// Encrypt `text` in place and return a nonce
 pub fn encrypt(text: &str, output: &mut Vec<u8>) -> anyhow::Result<NonceArray> {
     let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
-    println!("{nonce:?}");
     let bytes = CIPHER.encrypt(&nonce, text.as_bytes()).map_err(|e| anyhow::anyhow!("failed to encrypt: {e}"))?;
-    println!("{bytes:?}");
     *output = bytes;
 
     Ok(nonce)

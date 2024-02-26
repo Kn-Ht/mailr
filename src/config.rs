@@ -1,6 +1,10 @@
 use crate::crypto;
 use inquire::validator::Validation;
-use lettre::{message::Mailbox, transport::smtp::authentication::{Credentials, Mechanism}, Address};
+use lettre::{
+    message::Mailbox,
+    transport::smtp::authentication::{Credentials, Mechanism},
+    Address,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     env, fmt, fs,
@@ -79,9 +83,6 @@ impl Relay {
                 authentication: vec![],
             },
         }
-    }
-    pub const fn none() -> Self {
-        Self::None
     }
 }
 
@@ -198,7 +199,8 @@ impl Config {
         };
 
         let email = inquire::Text::new("email:")
-            .with_validator(validate_email).prompt()?;
+            .with_validator(validate_email)
+            .prompt()?;
         println!("");
 
         let password_plain = inquire::prompt_secret("password (will not be shown):")?;
