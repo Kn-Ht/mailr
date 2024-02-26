@@ -1,16 +1,19 @@
 use clap::{CommandFactory, Parser};
+
+use crate::config::Config;
 mod config;
 
 #[derive(Parser, Debug)]
+#[clap(override_usage(concat!(env!("CARGO_PKG_NAME"), " [--configure] --to <EMAIL> --subject <SUBJECT> --msg <MESSAGE BODY>")))]
 struct Args {
-    #[arg(long, action)]
+    #[arg(long, action, help("set the global/local user email & password"))]
     configure: bool,
-    #[arg(short, long)]
-    to: Option<String>,
-    #[arg(short, long)]
-    subject: Option<String>,
-    #[arg(short, long)]
-    msg: Option<String>,
+    #[arg(short, long, required_unless_present("configure"), default_value = "")]
+    to: String,
+    #[arg(short, long, required_unless_present("configure"), default_value = "")]
+    subject: String,
+    #[arg(short, long, required_unless_present("configure"), default_value = "")]
+    msg: String,
 }
 
 fn main() {
@@ -18,17 +21,11 @@ fn main() {
     let mut command = Args::command();
 
     if args.configure {
-        config::configure();
+        let config = Config::input();
         return;
     }
 
-    // Has the user passed the data?
-    config::expect_defined(&args.msg, &mut command, "No message body provided. Please provide it with --msg");
-    config::expect_defined(&args.subject, &mut command, "No email subject provided. Please provide it with --subject");
-    config::expect_defined(&args.to, &mut command, "No recipient provided. Please provide it with --to");
-
     // Is the user login saved?
-    
 
     println!("{args:?}");
 }
