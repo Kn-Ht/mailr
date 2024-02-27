@@ -1,11 +1,9 @@
 #![cfg_attr(not(debug_assertions), allow(dead_code))]
 
-use std::process;
 use clap::{CommandFactory, Parser};
 
-use colored::Colorize;
-
 use crate::config::Config;
+use crate::log::{error, info, warning};
 mod config;
 mod crypto;
 mod mail;
@@ -30,33 +28,35 @@ pub struct Args {
 
 fn main() {
     let args = Args::parse();
-    let mut command = Args::command();
+    let mut _command = Args::command();
 
     if args.configure {
+        // The user wants to configure their login data
         let config = match Config::ask() {
             Ok(c) => c,
             Err(e) => {
-                error!("failed to create config": e);
+                error("failed to create config", e);
             }
         };
 
         if let Err(err) = config.save() {
-            error!("failed to save the config": err);
+            error("failed to save the config", err);
         }
         return;
     }
 
     // Is the user login saved?
     let config = Config::from_file().unwrap_or_else(|err| {
-        error!("can't read config": err);
+        error("can't read config", err);
     });
 
+    // Was the email sent successfully?
     match config.send(&args) {
         Ok(_) => {
-            info!("Successfully sent Mail!");
+            info("Successfully sent Mail!");
         }
         Err(e) => {
-            error!("failed to send mail": e);
+            error("failed to send mail", e);
         }
     }
 }

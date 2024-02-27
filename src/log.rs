@@ -1,26 +1,21 @@
 //! Logging errors, warnings, etc.
+//! All of these functions output **colored** output
 
-#[macro_export]
-macro_rules! error {
-    ($fmt:literal) => {
-        eprintln!("{}: {}: \"{}\"", "error".bright_red().bold(), $cause.red(), $root);
-        std::process::exit(1);
-    };
+use std::process;
+use colored::Colorize;
+
+/// Logs "error: {cause}: {root}" to stderr
+pub fn error<S: AsRef<str>>(cause: S, root: anyhow::Error) -> ! {
+    eprintln!("{}: {}: \"{root}\"", "error".bright_red().bold(), cause.as_ref().red());
+    process::exit(1)
 }
 
-#[macro_export]
-macro_rules! warning {
-    ($msg:literal) => {
-        eprintln!("{}: {}", "warning".bright_yellow().bold(), $msg);
-    };
+/// Logs "warning: {msg}" to stderr
+pub fn warning<S: AsRef<str>>(msg: S) {
+    eprintln!("{}: {}", "warning".bright_yellow().bold(), msg.as_ref());
 }
 
-#[macro_export]
-macro_rules! info {
-    ($msg:literal) => {
-        println!(concat!("{}: ", $msg), "info".bright_green().bold());
-    };
-    ($msg:literal, $($arg:expr),*) => {
-        
-    };
+/// Logs info: {msg} to stderr
+pub fn info<S: AsRef<str>>(msg: S) {
+    println!("{}: {}", "info".bright_green().bold(), msg.as_ref());
 }

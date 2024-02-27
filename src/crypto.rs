@@ -1,3 +1,7 @@
+//! Cryptography interface.
+//! Uses the AES256-GCM algorithm: https://en.wikipedia.org/wiki/Galois/Counter_Mode
+//! Nonces and Passwords are stored as byte arrays, because they are not guaranteed to be valid UTF-8
+
 use lazy_static::lazy_static;
 use aes_gcm::{
     aead::{consts::{B0, B1}, Aead, AeadCore, KeyInit, OsRng}, aes::cipher::typenum::{UInt, UTerm}, AeadInPlace, Aes256Gcm, Key, Nonce
@@ -11,6 +15,7 @@ lazy_static! {
     static ref CIPHER: Aes256Gcm = Aes256Gcm::new(&KEY);
 }
 
+// Generic array of numbers representing a Nonce
 type NonceArray = Nonce<UInt<UInt<UInt<UInt<UTerm, B1>, B1>, B0>, B0>>;
 
 /// Encrypt `text` in place and return a nonce

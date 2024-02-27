@@ -1,13 +1,15 @@
 use crate::{crypto, info, warning};
+use anyhow::Ok;
 use inquire::validator::Validation;
 use lettre::{
-    message::Mailbox,
     transport::smtp::authentication::{Credentials, Mechanism},
     Address,
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    env, fmt, fs,
+    env,
+    error::Error,
+    fmt, fs,
     path::{Path, PathBuf},
 };
 
@@ -110,8 +112,13 @@ impl Config {
                 env::var_os("APPDATA").ok_or(anyhow::anyhow!("No %APPDATA% folder found."))?,
             )
             .join(".mailr.toml"))
+        } else if cfg!(target_os = "macos") {
+            fs::create_dir_all("/Library/Application Support/mailr")?;
+            Ok(PathBuf::from(
+                "/Library/Application Support/mailr/.mailr.toml",
+            ))
         } else {
-            Ok(PathBuf::new())
+            todo!()
         }
     }
 
@@ -170,16 +177,16 @@ impl Config {
 
             fs::write(&path_local, toml::to_string_pretty(self)?)?;
 
-            info!("saved file (local) to '{}'", path_local.display());
+            info(format!("saved file (local) to '{}'", path_local.display()));
         }
         if store_global {
             let path_global = Self::global_file_loc()?;
 
             if path_global.is_file() {
-                warning!(
+                warning(format!(
                     "overwriting existing file '{}'",
                     path_global.display()
-                );
+                ));
             }
 
             fs::write(&path_global, toml::to_string_pretty(self)?)?;
@@ -191,23 +198,29 @@ impl Config {
     /// Ask the user for config values
     pub fn ask() -> anyhow::Result<Self> {
         let validate_email = |email: &str| {
-            Ok(if let Err(e) = email.parse::<Address>() {
+            type Res = Result<Validation, Box<dyn Error + Send + Sync + 'static>>;
+            Res::Ok(if let Err(e) = email.parse::<Address>() {
                 Validation::Invalid(e.into())
             } else {
                 Validation::Valid
             })
         };
 
+        // Ask user for email:
         let email = inquire::Text::new("email:")
             .with_validator(validate_email)
             .prompt()?;
         println!("");
 
+        // Ask user for their password.
         let password_plain = inquire::prompt_secret("password (will not be shown):")?;
         let mut password = Vec::with_capacity(password_plain.len());
 
         // encrypt password
         let nonce = crypto::encrypt(&password_plain, &mut password)?;
+
+        // Drop the password_plain early
+        drop(password_plain);
 
         let relay = inquire::Select::new(
             "which relay to use:",
@@ -220,10 +233,11 @@ impl Config {
             let addr = inquire::prompt_text("(custom) server address:")?;
 
             let validate_port = |port: &u16| {
+                type Res = Result<Validation, Box<dyn Error + Send + Sync + 'static>>;
                 if (1..65535).contains(port) {
-                    Ok(Validation::Valid)
+                    Res::Ok(Validation::Valid)
                 } else {
-                    Ok(Validation::Invalid("Valid port range is 1 to 65535".into()))
+                    Res::Ok(Validation::Invalid("Valid port range is 1 to 65535".into()))
                 }
             };
 
