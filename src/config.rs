@@ -1,4 +1,4 @@
-use crate::{crypto, info, warning};
+use crate::{crypto::Cipher, info, warning};
 use anyhow::Ok;
 use inquire::validator::Validation;
 use lettre::{
@@ -93,16 +93,22 @@ pub struct Config {
     username: String,
     password: Vec<u8>,
     nonce: Vec<u8>,
-
-    #[serde(skip)]
-    password_str: Option<String>,
-    #[serde(skip)]
-    store_loc: Vec<SaveLocation>,
     #[serde(rename(serialize = "relay", deserialize = "relay"))]
     pub relay_settings: RelaySettings,
 }
 
-impl Config {
+#[derive(Serialize, Deserialize)]
+pub struct ConfigManager {
+    pub config: Config,
+    #[serde(skip)]
+    password_str: Option<String>,
+    #[serde(skip)]
+    store_loc: Vec<SaveLocation>,
+    #[serde(skip)]
+    cipher: Cipher
+}
+
+impl ConfigManager {
     const fn local_file_loc() -> &'static str {
         "./.mailr.toml"
     }
@@ -124,7 +130,7 @@ impl Config {
 
     pub fn credentials(&self) -> Credentials {
         Credentials::new(
-            self.username.clone(),
+            self.config.username.clone(),
             self.password_str.as_ref().unwrap().clone(),
         )
     }
@@ -133,10 +139,12 @@ impl Config {
         let local_path = Path::new(Self::local_file_loc());
         let contents: String;
 
+        let cipher = Cipher::new();
+
         if local_path.is_file() {
             contents = fs::read_to_string(&local_path)?;
             let mut des: Self = toml::from_str(&contents)?;
-            des.password_str = Some(crypto::decrypt(&des.password, des.nonce.as_slice().into())?);
+            des.password_str = Some(cipher.decrypt(&des.config.password, des.config.nonce.as_slice().into())?);
             return Ok(des);
         }
 
@@ -145,7 +153,7 @@ impl Config {
         if global_path.is_file() {
             contents = fs::read_to_string(&global_path)?;
             let mut des: Self = toml::from_str(&contents)?;
-            des.password_str = Some(crypto::decrypt(&des.password, des.nonce.as_slice().into())?);
+            des.password_str = Some(cipher.decrypt(&des.config.password, des.config.nonce.as_slice().into())?);
             return Ok(des);
         }
 
@@ -158,7 +166,7 @@ impl Config {
     }
 
     pub fn username(&self) -> &str {
-        &self.username
+        &self.config.username
     }
 
     pub fn save(&self) -> anyhow::Result<()> {
@@ -206,6 +214,8 @@ impl Config {
             })
         };
 
+        let cipher = Cipher::new();
+
         // Ask user for email:
         let email = inquire::Text::new("email:")
             .with_validator(validate_email)
@@ -217,7 +227,7 @@ impl Config {
         let mut password = Vec::with_capacity(password_plain.len());
 
         // encrypt password
-        let nonce = crypto::encrypt(&password_plain, &mut password)?;
+        let nonce = cipher.encrypt(&password_plain, &mut password)?;
 
         // Drop the password_plain early
         drop(password_plain);
@@ -270,12 +280,15 @@ impl Config {
         .prompt()?;
 
         Ok(Self {
-            username: email,
-            password,
+            config: Config {
+                username: email,
+                password,
+                nonce: nonce.to_vec(),
+                relay_settings
+            },
+            cipher,
             password_str: None,
-            nonce: nonce.to_vec(),
             store_loc,
-            relay_settings,
         })
     }
 }

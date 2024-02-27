@@ -631,7 +631,6 @@ dependencies = [
  "clap",
  "colored",
  "inquire",
- "lazy_static",
  "lettre",
  "serde",
  "toml",
