@@ -2,6 +2,7 @@
 //! This defines an interface (or trait) for crate::config::Config,  
 //! and implements it.  
 
+use colored::Colorize;
 use lettre::message::Mailbox;
 use lettre::message::MessageBuilder;
 use lettre::transport::smtp::client::Tls;
@@ -23,6 +24,12 @@ impl SendMail for config::ConfigManager {
     fn send(&self, args: &Args) -> anyhow::Result<()> {
         // Username & Decrypted Password
         let credentials = self.credentials();
+
+        println!("{}", "-------------------".blue());
+        info(format!("from    : {}", self.username().bold()));
+        info(format!("to      : {}", args.to.as_str().bold()));
+        info(format!("subject : {}", args.subject.as_str().bold()));
+        println!("{}", "-------------------".blue());
 
         info("creating transport...");
 

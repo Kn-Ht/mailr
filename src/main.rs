@@ -61,7 +61,12 @@ fn ask_send_email(cf: &ConfigManager) -> anyhow::Result<()> {
 
     // Handle control-c
     ctrlc::set_handler(move || {
-        done_clone.store(true, Ordering::SeqCst);
+        if done_clone.load(Ordering::SeqCst) {
+            panic!("CONTROL-C INTERRUPT HIT");
+        } else {
+            done_clone.store(true, Ordering::SeqCst);
+        }
+        
     })?;
 
     print!("{} ", ">".green());
