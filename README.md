@@ -7,6 +7,7 @@
 ```console
 $ git clone https://github.com/kn-ht/mailr
 $ cd mailr
+$ echo "your-aes256-key-here" > src/key.txt
 $ cargo build --release
 ```
 ---
