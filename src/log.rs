@@ -1,5 +1,5 @@
-//! Logging errors, warnings, etc.
-//! All of these functions output **colored** output
+//! Logging errors, warnings, etc.  
+//! All of these functions output **colored** output  
 
 use std::process;
 use colored::Colorize;
@@ -15,7 +15,12 @@ pub fn warning<S: AsRef<str>>(msg: S) {
     eprintln!("{}: {}", "warning".bright_yellow().bold(), msg.as_ref());
 }
 
-/// Logs info: {msg} to stderr
+/// Logs "info: {msg}" to stdout
 pub fn info<S: AsRef<str>>(msg: S) {
     println!("{}: {}", "info".bright_green().bold(), msg.as_ref());
+}
+
+/// Logs "hint: {msg}" to stdout
+pub fn hint<S: AsRef<str>>(msg: S) {
+    println!("{}: {}", "hint".bright_magenta(), msg.as_ref().bold());
 }

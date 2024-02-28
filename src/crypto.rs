@@ -1,6 +1,6 @@
-//! Cryptography interface.
-//! Uses the AES256-GCM algorithm: https://en.wikipedia.org/wiki/Galois/Counter_Mode
-//! Nonces and Passwords are stored as byte arrays, because they are not guaranteed to be valid UTF-8
+//! Cryptography interface.  
+//! Uses the AES256-GCM algorithm: https://en.wikipedia.org/wiki/Galois/Counter_Mode  
+//! Nonces and Passwords are stored as byte arrays, because they are not guaranteed to be valid UTF-8  
 
 use aes_gcm::{
     aead::{consts::{B0, B1}, Aead, AeadCore, KeyInit, OsRng}, aes::cipher::typenum::{UInt, UTerm}, Aes256Gcm, Nonce

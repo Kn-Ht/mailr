@@ -1,6 +1,6 @@
-//! Module for sending the mail.
-//! This defines an interface (or trait) for crate::config::Config,
-//! and implements it.
+//! Module for sending the mail.  
+//! This defines an interface (or trait) for crate::config::Config,  
+//! and implements it.  
 
 use lettre::message::Mailbox;
 use lettre::message::MessageBuilder;

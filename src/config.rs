@@ -11,6 +11,7 @@ use std::{
     error::Error,
     fmt, fs,
     path::{Path, PathBuf},
+    process,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
@@ -89,52 +90,73 @@ impl Relay {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Config {
+pub struct Login {
     username: String,
     password: Vec<u8>,
-    nonce: Vec<u8>,
+    nonce: Vec<u8>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Config {
+    login: Login,
     #[serde(rename(serialize = "relay", deserialize = "relay"))]
     pub relay_settings: RelaySettings,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct ConfigManager {
+    #[serde(flatten)]
     pub config: Config,
     #[serde(skip)]
     password_str: Option<String>,
     #[serde(skip)]
     store_loc: Vec<SaveLocation>,
-    #[serde(skip)]
-    cipher: Cipher
 }
 
 impl ConfigManager {
+    pub fn email_validator(email: &str) -> Result<Validation, Box<dyn Error + Send + Sync + 'static>> {
+        type Res = Result<Validation, Box<dyn Error + Send + Sync + 'static>>;
+        Res::Ok(if let Err(e) = email.parse::<Address>() {
+            Validation::Invalid(e.into())
+        } else {
+            Validation::Valid
+        })
+
+    }
+
     const fn local_file_loc() -> &'static str {
         "./.mailr.toml"
     }
     fn global_file_loc() -> anyhow::Result<PathBuf> {
-        if cfg!(target_os = "windows") {
+        #[cfg(target_os = "windows")]
+        {
             Ok(PathBuf::from(
                 env::var_os("APPDATA").ok_or(anyhow::anyhow!("No %APPDATA% folder found."))?,
             )
             .join(".mailr.toml"))
-        } else if cfg!(target_os = "macos") {
-            fs::create_dir_all("/Library/Application Support/mailr")?;
-            Ok(PathBuf::from(
-                "/Library/Application Support/mailr/.mailr.toml",
-            ))
-        } else {
-            todo!()
         }
+
+        #[cfg(target_os = "macos")]
+        {
+            fs::create_dir_all("/Library/Application Support/mailr")?;
+            return Ok(PathBuf::from(
+                "/Library/Application Support/mailr/.mailr.toml",
+            ));
+        }
+
+        // NOTE: if compiling fails here, you have to implement a function that returns the global config file path for your OS.
     }
 
+    /// Clone username & password into `Credentials`
     pub fn credentials(&self) -> Credentials {
         Credentials::new(
-            self.config.username.clone(),
+            self.config.login.username.clone(),
             self.password_str.as_ref().unwrap().clone(),
         )
     }
 
+    /// Try to read the config from a file.  
+    /// Strategy: First check local, then check global.
     pub fn from_file() -> anyhow::Result<Self> {
         let local_path = Path::new(Self::local_file_loc());
         let contents: String;
@@ -143,8 +165,14 @@ impl ConfigManager {
 
         if local_path.is_file() {
             contents = fs::read_to_string(&local_path)?;
-            let mut des: Self = toml::from_str(&contents)?;
-            des.password_str = Some(cipher.decrypt(&des.config.password, des.config.nonce.as_slice().into())?);
+            let mut des: Self = toml::from_str(&contents).map_err(|e| {
+                anyhow::anyhow!(
+                    "failed to read local config '{}': {e}",
+                    local_path.display()
+                )
+            })?;
+            des.password_str =
+                Some(cipher.decrypt(&des.config.login.password, des.config.login.nonce.as_slice().into())?);
             return Ok(des);
         }
 
@@ -152,8 +180,14 @@ impl ConfigManager {
 
         if global_path.is_file() {
             contents = fs::read_to_string(&global_path)?;
-            let mut des: Self = toml::from_str(&contents)?;
-            des.password_str = Some(cipher.decrypt(&des.config.password, des.config.nonce.as_slice().into())?);
+            let mut des: Self = toml::from_str(&contents).map_err(|e| {
+                anyhow::anyhow!(
+                    "failed to read global config '{}': {e}",
+                    global_path.display()
+                )
+            })?;
+            des.password_str =
+                Some(cipher.decrypt(&des.config.login.password, des.config.login.nonce.as_slice().into())?);
             return Ok(des);
         }
 
@@ -166,7 +200,7 @@ impl ConfigManager {
     }
 
     pub fn username(&self) -> &str {
-        &self.config.username
+        &self.config.login.username
     }
 
     pub fn save(&self) -> anyhow::Result<()> {
@@ -177,10 +211,16 @@ impl ConfigManager {
             let path_local = Path::new(Self::local_file_loc());
 
             if path_local.is_file() {
-                eprintln!(
-                    "[WARNING] overwriting existing config '{}'",
+                warning(format!(
+                    "local config already exists at '{}'",
                     path_local.display()
-                );
+                ));
+                if let Err(_) | Result::Ok(false) =
+                    inquire::prompt_confirmation("overwrite existing config? (y/n)")
+                {
+                    info("aborting...");
+                    process::exit(0);
+                }
             }
 
             fs::write(&path_local, toml::to_string_pretty(self)?)?;
@@ -192,33 +232,41 @@ impl ConfigManager {
 
             if path_global.is_file() {
                 warning(format!(
-                    "overwriting existing file '{}'",
+                    "global config already exists at '{}'",
                     path_global.display()
                 ));
+                if let Err(_) | Result::Ok(false) =
+                    inquire::prompt_confirmation("overwrite existing config? (y/n)")
+                {
+                    info("aborting...");
+                    process::exit(0);
+                }
             }
 
-            fs::write(&path_global, toml::to_string_pretty(self)?)?;
+            fs::write(
+                &path_global,
+                toml::to_string_pretty(self).map_err(|e| {
+                    anyhow::anyhow!(
+                        "failed to read global config '{}': {e}",
+                        path_global.display()
+                    )
+                })?,
+            )?;
 
-            println!("[INFO] saved file (global) to '{}'", path_global.display());
+            info(format!(
+                "saved config (global) to '{}'",
+                path_global.display()
+            ));
         }
         Ok(())
     }
     /// Ask the user for config values
     pub fn ask() -> anyhow::Result<Self> {
-        let validate_email = |email: &str| {
-            type Res = Result<Validation, Box<dyn Error + Send + Sync + 'static>>;
-            Res::Ok(if let Err(e) = email.parse::<Address>() {
-                Validation::Invalid(e.into())
-            } else {
-                Validation::Valid
-            })
-        };
-
         let cipher = Cipher::new();
 
         // Ask user for email:
         let email = inquire::Text::new("email:")
-            .with_validator(validate_email)
+            .with_validator(Self::email_validator)
             .prompt()?;
         println!("");
 
@@ -281,12 +329,13 @@ impl ConfigManager {
 
         Ok(Self {
             config: Config {
-                username: email,
-                password,
-                nonce: nonce.to_vec(),
-                relay_settings
+                login: Login {
+                    username: email,
+                    password,
+                    nonce: nonce.to_vec(),
+                },
+                relay_settings,
             },
-            cipher,
             password_str: None,
             store_loc,
         })
