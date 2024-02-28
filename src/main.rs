@@ -10,7 +10,6 @@ mod crypto;
 mod mail;
 mod log;
 
-
 // SendEmail trait
 use mail::SendMail;
 
