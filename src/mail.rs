@@ -47,6 +47,7 @@ impl SendMail for config::ConfigManager {
             .credentials(credentials)
             .build();
 
+
         //NOTE: maybe find a way around the cloning.
         info("building message...");
         let message = MessageBuilder::new()

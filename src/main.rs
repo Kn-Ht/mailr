@@ -2,7 +2,15 @@
 
 // TODO: fix hint text after interactive mode end
 
-use std::{env, io::{self, Write}, process, sync::{atomic::{AtomicBool, Ordering}, Arc}};
+use std::{
+    env,
+    io::{self, Write},
+    process,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 use clap::Parser;
 use colored::Colorize;
@@ -43,12 +51,14 @@ fn ask_send_email(cf: &ConfigManager) -> anyhow::Result<()> {
 
     println!("");
 
-    let subject = inquire::Text::new("subject:")
-        .prompt()?;
+    let subject = inquire::Text::new("subject:").prompt()?;
 
     println!("");
 
-    println!("{}", "message body (press CTRL-Z to stop typing):".bright_green());
+    println!(
+        "{}",
+        "message body (press CTRL-Z to stop typing):".bright_green()
+    );
 
     let stdin = io::stdin();
     let mut stdout = io::stdout();
@@ -63,10 +73,8 @@ fn ask_send_email(cf: &ConfigManager) -> anyhow::Result<()> {
     ctrlc::set_handler(move || {
         if done_clone.load(Ordering::SeqCst) {
             panic!("CONTROL-C INTERRUPT HIT");
-        } else {
-            done_clone.store(true, Ordering::SeqCst);
-        }
-        
+        } 
+        done_clone.store(true, Ordering::SeqCst);
     })?;
 
     print!("{} ", ">".green());
@@ -89,14 +97,19 @@ fn ask_send_email(cf: &ConfigManager) -> anyhow::Result<()> {
         configure: false,
         to: email,
         subject,
-        msg: body
+        msg: body,
     };
 
     cf.send(&args)
 }
 
 fn main() {
-    let argv = env::args().collect::<Vec<String>>();
+    #[cfg(target_os = "windows")]
+    let _ = std::process::Command::new("cmd.exe")
+        .args(["/c", "cls"])
+        .status();
+
+    let argv = env::args();
     let argc = argv.len();
 
     let no_command_entered = argc <= 1;
@@ -134,7 +147,6 @@ fn main() {
                 }
                 return;
             }
-
         }
 
         // The user wants to configure their login data
@@ -153,7 +165,7 @@ fn main() {
     }
 
     // The user has entered arguments
-    let args = Args::parse_from(&argv);
+    let args = Args::parse_from(argv);
 
     if args.configure {
         // The user wants to configure their login data

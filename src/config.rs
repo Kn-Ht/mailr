@@ -1,6 +1,6 @@
 use crate::{crypto::Cipher, info, warning};
 use anyhow::Ok;
-use inquire::validator::Validation;
+use inquire::{list_option::ListOption, validator::Validation};
 use lettre::{
     transport::smtp::authentication::{Credentials, Mechanism},
     Address,
@@ -93,7 +93,7 @@ impl Relay {
 pub struct Login {
     username: String,
     password: Vec<u8>,
-    nonce: Vec<u8>
+    nonce: Vec<u8>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -114,14 +114,15 @@ pub struct ConfigManager {
 }
 
 impl ConfigManager {
-    pub fn email_validator(email: &str) -> Result<Validation, Box<dyn Error + Send + Sync + 'static>> {
+    pub fn email_validator(
+        email: &str,
+    ) -> Result<Validation, Box<dyn Error + Send + Sync + 'static>> {
         type Res = Result<Validation, Box<dyn Error + Send + Sync + 'static>>;
         Res::Ok(if let Err(e) = email.parse::<Address>() {
             Validation::Invalid(e.into())
         } else {
             Validation::Valid
         })
-
     }
 
     const fn local_file_loc() -> &'static str {
@@ -171,8 +172,10 @@ impl ConfigManager {
                     local_path.display()
                 )
             })?;
-            des.password_str =
-                Some(cipher.decrypt(&des.config.login.password, des.config.login.nonce.as_slice().into())?);
+            des.password_str = Some(cipher.decrypt(
+                &des.config.login.password,
+                des.config.login.nonce.as_slice().into(),
+            )?);
             return Ok(des);
         }
 
@@ -186,8 +189,10 @@ impl ConfigManager {
                     global_path.display()
                 )
             })?;
-            des.password_str =
-                Some(cipher.decrypt(&des.config.login.password, des.config.login.nonce.as_slice().into())?);
+            des.password_str = Some(cipher.decrypt(
+                &des.config.login.password,
+                des.config.login.nonce.as_slice().into(),
+            )?);
             return Ok(des);
         }
 
@@ -292,11 +297,11 @@ impl ConfigManager {
 
             let validate_port = |port: &u16| {
                 type Res = Result<Validation, Box<dyn Error + Send + Sync + 'static>>;
-                if (1..65535).contains(port) {
-                    Res::Ok(Validation::Valid)
+                Res::Ok(if (1..65535).contains(port) {
+                    Validation::Valid
                 } else {
-                    Res::Ok(Validation::Invalid("Valid port range is 1 to 65535".into()))
-                }
+                    Validation::Invalid("Valid port range is 1 to 65535".into())
+                })
             };
 
             let port = inquire::CustomType::<u16>::new("(custom) server port:")
@@ -305,11 +310,15 @@ impl ConfigManager {
 
             let tls = inquire::prompt_confirmation("(custom) use TLS? (y/n)")?;
 
-            let authentication = inquire::MultiSelect::new(
+            let mut authentication = inquire::MultiSelect::new(
                 "authentication mechanisms:",
                 vec![Mechanism::Plain, Mechanism::Login, Mechanism::Xoauth2],
             )
             .prompt()?;
+
+            if authentication.is_empty() {
+                authentication.push(Mechanism::Plain);
+            }
 
             RelaySettings {
                 addr,
@@ -325,6 +334,14 @@ impl ConfigManager {
             "location to store email & password:",
             vec![SaveLocation::Local, SaveLocation::Global],
         )
+        .with_validator(|locs: &[ListOption<&SaveLocation>]| {
+            type ValidResult = Result<Validation, Box<dyn Error + Send + Sync>>;
+            ValidResult::Ok(if !locs.is_empty() {
+                Validation::Valid
+            } else {
+                Validation::Invalid("Please select at least one save location.".into())
+            })
+        })
         .prompt()?;
 
         Ok(Self {
